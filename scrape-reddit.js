@@ -100,21 +100,32 @@ async function scrapeType(type) {
   let totalInserted = 0;
   for (let i = 0; i < images.length; i += 50) {
     const batch = images.slice(i, i + 50);
-    try {
-      const res = await fetch(`${PROD_URL}/admin/ingest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_SECRET}` },
-        body: JSON.stringify({ type, images: batch }),
-        signal: AbortSignal.timeout(120_000),
-      });
-      if (!res.ok) { console.error(`  ingest batch ${i}-${i + batch.length}: HTTP ${res.status}`); continue; }
-      const { inserted } = await res.json();
-      totalInserted += inserted;
-      console.log(`  batch ${i + batch.length}/${images.length} → ${inserted} new`);
-      await new Promise((r) => setTimeout(r, 2_000)); // 2s between ingest batches
-    } catch (e) {
-      console.error(`  ingest batch ${i}: ${e.message}`);
+    let inserted = 0;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        const res = await fetch(`${PROD_URL}/admin/ingest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_SECRET}` },
+          body: JSON.stringify({ type, images: batch }),
+          signal: AbortSignal.timeout(120_000),
+        });
+        if (!res.ok) {
+          const delay = attempt * 15_000;
+          console.error(`  ingest batch ${i}-${i + batch.length}: HTTP ${res.status} (attempt ${attempt}, retrying in ${delay / 1000}s)`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        ({ inserted } = await res.json());
+        break;
+      } catch (e) {
+        const delay = attempt * 15_000;
+        console.error(`  ingest batch ${i}-${i + batch.length}: ${e.message} (attempt ${attempt}, retrying in ${delay / 1000}s)`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
     }
+    totalInserted += inserted;
+    console.log(`  batch ${i + batch.length}/${images.length} → ${inserted} new`);
+    await new Promise((r) => setTimeout(r, 2_000)); // 2s between ingest batches
   }
   console.log(`[${type}] done — ${totalInserted} new images inserted`);
 }
