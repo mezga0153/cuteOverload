@@ -42,7 +42,7 @@ const bookmarksGrid     = document.getElementById('bookmarks-grid');
 let images       = [];
 let currentIndex = 0;
 const STACK_DEPTH    = 3;
-const SWIPE_THRESHOLD = 110;
+const SWIPE_THRESHOLD = 70;
 
 // ── Bookmarks (localStorage) ──────────────────────────────────────────────────
 const BOOKMARKS_KEY = 'dogsandcats_superlikes';
