@@ -456,6 +456,21 @@ h1 {
 
 .card--superlike-fly { animation: superlike-burst 0.55s ease forwards; }
 
+@keyframes star-fly {
+  0%   { transform: translate(0, 0) scale(1);   opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0.3); opacity: 0; }
+}
+
+.star-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  font-size: var(--size, 1.4rem);
+  animation: star-fly var(--dur, 0.8s) ease-out forwards;
+  will-change: transform, opacity;
+}
+
 /* ── Bookmarks panel ──────────────────────────────────────────────────────── */
 .panel {
   position: fixed;

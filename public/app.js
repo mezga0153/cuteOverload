@@ -344,7 +344,33 @@ function doSuperlike(card) {
   const img = images[currentIndex];
   sendReaction(img.ic_id, 'superlike');
   addBookmark(img);
+  spawnStars(card);
   flyCardUp(card);
+}
+
+function spawnStars(card) {
+  const rect = card.getBoundingClientRect();
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+  const GLYPHS = ['⭐','✨','💛','⭐','✨','🌟','⭐','✨','💫'];
+  const COUNT  = 22;
+  for (let i = 0; i < COUNT; i++) {
+    const el = document.createElement('span');
+    el.className = 'star-particle';
+    el.textContent = GLYPHS[i % GLYPHS.length];
+    const angle = (i / COUNT) * 2 * Math.PI + (Math.random() - 0.5) * 0.5;
+    const dist  = 80 + Math.random() * 180;
+    const tx    = Math.round(Math.cos(angle) * dist);
+    const ty    = Math.round(Math.sin(angle) * dist);
+    const size  = (0.9 + Math.random() * 0.9).toFixed(2);
+    const dur   = (0.55 + Math.random() * 0.5).toFixed(2);
+    const delay = (Math.random() * 0.12).toFixed(2);
+    el.style.cssText = `left:${cx}px;top:${cy}px;transform-origin:center;
+      --tx:${tx}px;--ty:${ty}px;--size:${size}rem;--dur:${dur}s;
+      animation-delay:${delay}s;margin-left:-0.5em;margin-top:-0.5em;`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
 }
 
 function advance() {
