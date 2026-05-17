@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#764ba2" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Dogs &amp; Cats 🐾</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+
+      <!-- ── Selection screen ─────────────────────────────────────── -->
+      <div id="screen-select" class="screen active">
+        <div class="paw-logo">🐾</div>
+        <h1>Cute Overload</h1>
+        <p class="subtitle">What are you in the mood for?</p>
+        <div class="choices">
+          <button class="choice-btn" data-type="dogs">🐶<span>Dogs</span></button>
+          <button class="choice-btn choice-btn--both" data-type="both">🐾<span>Both</span></button>
+          <button class="choice-btn" data-type="cats">🐱<span>Cats</span></button>
+        </div>
+      </div>
+
+      <!-- ── Loading screen ───────────────────────────────────────── -->
+      <div id="screen-loading" class="screen">
+        <div class="spinner">🐾</div>
+        <p id="loading-text"></p>
+      </div>
+
+      <!-- ── Swipe screen ─────────────────────────────────────────── -->
+      <div id="screen-swipe" class="screen">
+        <header class="swipe-header">
+          <button id="btn-back" aria-label="Back">←</button>
+          <span id="counter"></span>
+          <button id="btn-bookmarks" aria-label="My superlikes">★</button>
+        </header>
+
+        <div id="card-stack"></div>
+
+        <footer class="swipe-footer">
+          <div class="hint hint--left">👎</div>
+          <button id="btn-superlike" aria-label="Superlike">⭐</button>
+          <div class="hint hint--right">❤️</div>
+        </footer>
+      </div>
+
+    </div><!-- /#app -->
+
+    <!-- ── Bookmarks screen ──────────────────────────────────────────── -->
+    <div id="bookmarks-panel" class="panel hidden">
+      <div class="panel-header">
+        <button id="btn-bookmarks-close">✕</button>
+        <h2>⭐ My Superlikes</h2>
+        <div></div>
+      </div>
+      <div id="bookmarks-grid"></div>
+    </div>
+
+    <!-- ── Error modal ───────────────────────────────────────────── -->
+    <div id="error-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card">
+        <div class="modal-emoji" aria-hidden="true">😱</div>
+        <h2 id="modal-title">HOW DARE YOU!</h2>
+        <p id="modal-message"></p>
+        <button id="btn-modal-close">I'm sorry… 🥺</button>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

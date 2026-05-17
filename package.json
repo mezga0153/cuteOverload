@@ -1,0 +1,18 @@
+{
+  "name": "dogs-and-cats",
+  "version": "1.0.0",
+  "description": "Tinder-style cute dogs & cats swipe app",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "11.9.1",
+    "express": "4.22.2",
+    "path-to-regexp": "0.1.13"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

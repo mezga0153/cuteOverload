@@ -1,0 +1,361 @@
+/**
+ * Dogs & Cats — Tinder-style swipe frontend
+ *
+ * Reactions:  swipe right = like | swipe up / ⭐ button = superlike | swipe left = scolded
+ * Bookmarks:  superlikes saved to localStorage + shown in the bookmarks panel
+ * Server:     like / superlike counts sent to /api/like and /api/superlike
+ */
+
+// ── Scolding messages ─────────────────────────────────────────────────────────
+const SCOLD_MESSAGES = [
+  "This precious angel did NOTHING wrong. Reconsider your life choices. 😤",
+  "Excuse me?! That is literally the cutest thing on Earth and you swiped LEFT?! 🫢",
+  "ERROR 404: Valid reason to dislike this cutie not found. 🤖",
+  "The Council of Fluffs has been notified of your crimes. 🚨",
+  "Your heart is clearly 3 sizes too small today. ❄️",
+  "The audacity. The sheer, unmitigated audacity. 😠",
+  "I am calling the Cute Animal Protection Agency right now. ☎️",
+  "Scientists baffled: local user tries to dislike undeniably perfect creature. 📰",
+  "This baby is literally perfect and you swiped LEFT?! Absolutely unacceptable! 😱",
+  "Left swipes on cute animals are banned in 47 countries. You've been warned. 🚫",
+];
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const screenSelect      = document.getElementById('screen-select');
+const screenLoading     = document.getElementById('screen-loading');
+const screenSwipe       = document.getElementById('screen-swipe');
+const loadingText       = document.getElementById('loading-text');
+const cardStack         = document.getElementById('card-stack');
+const counterEl         = document.getElementById('counter');
+const errorModal        = document.getElementById('error-modal');
+const modalMessage      = document.getElementById('modal-message');
+const btnModalClose     = document.getElementById('btn-modal-close');
+const btnBack           = document.getElementById('btn-back');
+const btnSuperlike      = document.getElementById('btn-superlike');
+const btnBookmarks      = document.getElementById('btn-bookmarks');
+const bookmarksPanel    = document.getElementById('bookmarks-panel');
+const btnBookmarksClose = document.getElementById('btn-bookmarks-close');
+const bookmarksGrid     = document.getElementById('bookmarks-grid');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let images       = [];
+let currentIndex = 0;
+const STACK_DEPTH    = 3;
+const SWIPE_THRESHOLD = 110;
+
+// ── Bookmarks (localStorage) ──────────────────────────────────────────────────
+const BOOKMARKS_KEY = 'dogsandcats_superlikes';
+
+function getBookmarks() {
+  try { return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function addBookmark(img) {
+  const list = getBookmarks();
+  if (list.some((b) => b.ic_id === img.ic_id)) return;
+  list.unshift({ ic_id: img.ic_id, url: img.url, title: img.title, source: img.source, saved_at: Date.now() });
+  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(list));
+}
+
+// ── Server reactions (fire-and-forget) ───────────────────────────────────────
+function sendReaction(ic_id, action) {
+  fetch(`/api/${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ic_id }),
+  }).catch(() => {});
+}
+
+// ── Screen transitions ────────────────────────────────────────────────────────
+function showScreen(screen) {
+  [screenSelect, screenLoading, screenSwipe].forEach((s) => s.classList.remove('active'));
+  screen.classList.add('active');
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.choice-btn').forEach((btn) => {
+  btn.addEventListener('click', () => start(btn.dataset.type));
+});
+
+// ── Back ──────────────────────────────────────────────────────────────────────
+btnBack.addEventListener('click', () => {
+  images = []; currentIndex = 0; cardStack.innerHTML = '';
+  showScreen(screenSelect);
+});
+
+// ── Error modal ───────────────────────────────────────────────────────────────
+btnModalClose.addEventListener('click', () => errorModal.classList.add('hidden'));
+
+// ── Bookmarks panel ───────────────────────────────────────────────────────────
+btnBookmarks.addEventListener('click', () => {
+  renderBookmarks();
+  bookmarksPanel.classList.remove('hidden');
+});
+
+btnBookmarksClose.addEventListener('click', () => bookmarksPanel.classList.add('hidden'));
+
+function renderBookmarks() {
+  const list = getBookmarks();
+  bookmarksGrid.innerHTML = '';
+  if (list.length === 0) {
+    bookmarksGrid.innerHTML = `
+      <div class="bookmarks-empty">
+        <div class="empty-emoji">⭐</div>
+        <p>No superlikes yet!<br>Swipe up or tap ⭐ to save your favourites.</p>
+      </div>`;
+    return;
+  }
+  list.forEach((item) => {
+    const div = document.createElement('div');
+    div.className = 'bookmark-item';
+    const img = document.createElement('img');
+    img.src = item.url;
+    img.alt = item.title || 'Superliked animal';
+    img.loading = 'lazy';
+    const src = document.createElement('div');
+    src.className = 'bookmark-source';
+    src.textContent = item.source || '';
+    div.appendChild(img);
+    div.appendChild(src);
+    bookmarksGrid.appendChild(div);
+  });
+}
+
+// ── Preloader ─────────────────────────────────────────────────────────────────
+function preload(imgs, count = 6) {
+  imgs.slice(0, count).forEach((img) => { new Image().src = img.url; });
+}
+
+// ── Start flow ────────────────────────────────────────────────────────────────
+async function start(type) {
+  showScreen(screenLoading);
+  loadingText.textContent = '';
+
+  let list;
+  try {
+    const res = await fetch(`/api/images?type=${encodeURIComponent(type)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    list = await res.json();
+  } catch {
+    loadingText.textContent = '😿 Could not reach the server. Tap to retry.';
+    screenLoading.addEventListener('click', () => start(type), { once: true });
+    return;
+  }
+
+  if (!Array.isArray(list) || list.length === 0) {
+    loadingText.textContent = '🐾 Loading cuties in the background…\nTap to check again in a moment!';
+    screenLoading.addEventListener('click', () => start(type), { once: true });
+    return;
+  }
+
+  images = list;
+  currentIndex = 0;
+  preload(images);
+  renderStack();
+  showScreen(screenSwipe);
+}
+
+// ── Card stack ────────────────────────────────────────────────────────────────
+function renderStack() {
+  cardStack.innerHTML = '';
+  const end = Math.min(currentIndex + STACK_DEPTH, images.length);
+  for (let i = end - 1; i >= currentIndex; i--) {
+    const offset = i - currentIndex;
+    const card   = buildCard(images[i], offset === 0);
+    applyStackTransform(card, offset);
+    cardStack.appendChild(card);
+  }
+  updateCounter();
+}
+
+function applyStackTransform(card, offset) {
+  card.style.transform  = `translateY(${offset * 10}px) scale(${1 - offset * 0.04})`;
+  card.style.zIndex     = 10 - offset;
+  card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+}
+
+function updateCounter() {
+  counterEl.textContent = `${Math.min(currentIndex + 1, images.length)} / ${images.length}`;
+}
+
+// ── Build card ────────────────────────────────────────────────────────────────
+function buildCard(imageData, isTop) {
+  const card = document.createElement('div');
+  card.className = 'card' + (isTop ? '' : ' card--background');
+
+  const img = document.createElement('img');
+  img.src = imageData.url;
+  img.alt = imageData.title || 'Cute animal';
+
+  const info = document.createElement('div');
+  info.className = 'card-info';
+  const t = document.createElement('p'); t.className = 'card-title';   t.textContent = imageData.title  || '';
+  const s = document.createElement('p'); s.className = 'card-source';  s.textContent = imageData.source || '';
+  info.appendChild(t); info.appendChild(s);
+
+  const labelLike  = document.createElement('div'); labelLike.className  = 'card-label label-like';  labelLike.textContent  = 'CUTE!';
+  const labelNope  = document.createElement('div'); labelNope.className  = 'card-label label-nope';  labelNope.textContent  = 'NOPE';
+  const labelSuper = document.createElement('div'); labelSuper.className = 'card-label label-super'; labelSuper.textContent = '⭐ SUPER!';
+
+  card.appendChild(img);
+  card.appendChild(info);
+  card.appendChild(labelLike);
+  card.appendChild(labelNope);
+  card.appendChild(labelSuper);
+
+  if (isTop) attachDrag(card, labelLike, labelNope, labelSuper);
+
+  return card;
+}
+
+// ── Drag / swipe ──────────────────────────────────────────────────────────────
+function attachDrag(card, labelLike, labelNope, labelSuper) {
+  let startX = 0, startY = 0, dx = 0, dy = 0, active = false;
+
+  function onStart(x, y) {
+    active = true; startX = x; startY = y; dx = 0; dy = 0;
+    card.style.transition = 'none';
+  }
+
+  function onMove(x, y) {
+    if (!active) return;
+    dx = x - startX;
+    dy = y - startY;
+
+    // Determine dominant direction
+    const isGoingUp = dy < 0 && Math.abs(dy) > Math.abs(dx) * 0.7;
+    if (isGoingUp) {
+      card.style.transform = `translate(${dx * 0.3}px, ${dy}px) scale(${1 + Math.min(Math.abs(dy) / 400, 0.08)})`;
+      const ratio = Math.min(Math.abs(dy) / SWIPE_THRESHOLD, 1);
+      labelSuper.style.opacity = ratio;
+      labelLike.style.opacity  = 0;
+      labelNope.style.opacity  = 0;
+    } else {
+      const rot = dx * 0.07;
+      card.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+      const ratio = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
+      if (dx > 0) { labelLike.style.opacity  = ratio; labelNope.style.opacity  = 0; }
+      else         { labelNope.style.opacity  = ratio; labelLike.style.opacity  = 0; }
+      labelSuper.style.opacity = 0;
+    }
+  }
+
+  function onEnd() {
+    if (!active) return;
+    active = false;
+    labelLike.style.opacity = labelNope.style.opacity = labelSuper.style.opacity = 0;
+
+    const isUp = dy < -SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx);
+
+    if (isUp) {
+      doSuperlike(card);
+    } else if (dx > SWIPE_THRESHOLD) {
+      doLike(card);
+    } else if (dx < -SWIPE_THRESHOLD) {
+      snapBack(card); showScoldModal();
+    } else {
+      snapBack(card);
+    }
+  }
+
+  // Touch
+  card.addEventListener('touchstart', (e) => { const t = e.touches[0]; onStart(t.clientX, t.clientY); }, { passive: true });
+  card.addEventListener('touchmove',  (e) => { const t = e.touches[0]; onMove(t.clientX, t.clientY);  }, { passive: true });
+  card.addEventListener('touchend',    onEnd);
+  card.addEventListener('touchcancel', onEnd);
+
+  // Mouse
+  card.addEventListener('mousedown', (e) => { onStart(e.clientX, e.clientY); e.preventDefault(); });
+  const onMM = (e) => onMove(e.clientX, e.clientY);
+  const onMU = () => { if (active) onEnd(); };
+  document.addEventListener('mousemove', onMM);
+  document.addEventListener('mouseup',   onMU);
+
+  const obs = new MutationObserver(() => {
+    if (!card.isConnected) {
+      document.removeEventListener('mousemove', onMM);
+      document.removeEventListener('mouseup',   onMU);
+      obs.disconnect();
+    }
+  });
+  obs.observe(cardStack, { childList: true });
+}
+
+// ── Superlike button ──────────────────────────────────────────────────────────
+btnSuperlike.addEventListener('click', () => {
+  const topCard = cardStack.querySelector('.card:not(.card--background)');
+  if (topCard) doSuperlike(topCard);
+});
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function doLike(card) {
+  const img = images[currentIndex];
+  sendReaction(img.ic_id, 'like');
+  flyCard(card, 1);
+}
+
+function doSuperlike(card) {
+  const img = images[currentIndex];
+  sendReaction(img.ic_id, 'superlike');
+  addBookmark(img);
+  flyCardUp(card);
+}
+
+function advance() {
+  currentIndex++;
+  if (currentIndex < images.length) {
+    renderStack();
+    preload(images.slice(currentIndex + STACK_DEPTH, currentIndex + STACK_DEPTH + 4));
+  } else {
+    showEndCard();
+  }
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+function flyCard(card, direction) {
+  card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+  card.style.transform  = `translate(${direction * 160}vw, -60px) rotate(${direction * 30}deg)`;
+  card.style.opacity    = '0';
+  setTimeout(advance, 380);
+}
+
+function flyCardUp(card) {
+  card.classList.add('card--superlike-fly');
+  setTimeout(advance, 520);
+}
+
+function snapBack(card) {
+  card.classList.remove('card--shake');
+  void card.offsetWidth;
+  card.classList.add('card--shake');
+  card.style.transition = '';
+  card.addEventListener('animationend', () => {
+    card.classList.remove('card--shake');
+    applyStackTransform(card, 0);
+  }, { once: true });
+}
+
+// ── End card ──────────────────────────────────────────────────────────────────
+function showEndCard() {
+  cardStack.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'end-card';
+  div.innerHTML = `
+    <div class="end-emoji">🎉</div>
+    <h2>You've seen them all!</h2>
+    <p>You're officially a certified cute-animal appreciator!</p>
+    <button class="btn-restart">See More Cuties</button>
+  `;
+  div.querySelector('.btn-restart').addEventListener('click', () => {
+    images = []; currentIndex = 0; cardStack.innerHTML = '';
+    showScreen(screenSelect);
+  });
+  cardStack.appendChild(div);
+}
+
+// ── Scold modal ───────────────────────────────────────────────────────────────
+function showScoldModal() {
+  modalMessage.textContent = SCOLD_MESSAGES[Math.floor(Math.random() * SCOLD_MESSAGES.length)];
+  errorModal.classList.remove('hidden');
+}
