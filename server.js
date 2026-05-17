@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { incrementLikes, incrementSuperlikes, getTopSuperlikes, getById, getByType } from './db.js';
+import { incrementLikes, incrementSuperlikes, getTopSuperlikes, getById, getByType, countImages } from './db.js';
 import { ensureHosted } from './imagecodex.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,9 +35,9 @@ const REDDIT_LISTINGS = ['hot', 'top?t=week', 'top?t=month', 'top?t=year', 'top?
 
 // ── In-memory cache ──────────────────────────────────────────────────────────
 const cache = new Map();
-const CACHE_TTL_MS = 15 * 60 * 1000;
 const UPLOAD_BATCH = 10;
 const IMAGE_TARGET = 10_000;
+const FETCH_RETRY_INTERVAL_MS = 30 * 60 * 1000; // 30 min between rounds
 
 // ── Reddit helpers ───────────────────────────────────────────────────────────
 
@@ -90,6 +90,25 @@ function fetchSubreddit(subreddit) {
 
 const fetching = new Set();
 
+// ── Background fetch loop ────────────────────────────────────────────────────
+// Runs both dog/cat pipelines repeatedly until IMAGE_TARGET is reached.
+async function startFetchLoop() {
+  while (true) {
+    const total = countImages();
+    if (total >= IMAGE_TARGET) {
+      console.log(`[fetch] target reached: ${total}/${IMAGE_TARGET} — stopping`);
+      break;
+    }
+    console.log(`[fetch] starting round — ${total}/${IMAGE_TARGET} in DB`);
+    await Promise.allSettled([runFetch('dogs'), runFetch('cats')]);
+    const newTotal = countImages();
+    console.log(`[fetch] round done — ${newTotal}/${IMAGE_TARGET} in DB`);
+    if (newTotal >= IMAGE_TARGET) break;
+    console.log(`[fetch] next round in 30 min`);
+    await new Promise((r) => setTimeout(r, FETCH_RETRY_INTERVAL_MS));
+  }
+}
+
 async function runFetch(type) {
   if (fetching.has(type)) return;
   fetching.add(type);
@@ -130,23 +149,14 @@ async function runFetch(type) {
   }
 }
 
-function maybeRefresh(type) {
-  const entry = cache.get(type);
-  if (entry && Date.now() - entry.ts < CACHE_TTL_MS) return;
-  if (fetching.has(type)) return;
-  runFetch(type).catch(console.error);
-}
-
 function dbRow(row) {
   return { ic_id: row.ic_id, url: row.ic_url, title: row.title, source: row.source };
 }
 
 function getImages(type) {
   if (type === 'both') {
-    maybeRefresh('dogs');
-    maybeRefresh('cats');
-    const dogs = cache.get('dogs')?.data ?? getByType('dogs', 1000).map(dbRow);
-    const cats = cache.get('cats')?.data ?? getByType('cats', 1000).map(dbRow);
+    const dogs = cache.get('dogs')?.data?.length > 0 ? cache.get('dogs').data : getByType('dogs', 1000).map(dbRow);
+    const cats = cache.get('cats')?.data?.length > 0 ? cache.get('cats').data : getByType('cats', 1000).map(dbRow);
     const combined = [...dogs, ...cats];
     for (let i = combined.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -155,9 +165,8 @@ function getImages(type) {
     return combined;
   }
 
-  maybeRefresh(type);
   const entry = cache.get(type);
-  if (entry && entry.data.length > 0 && Date.now() - entry.ts < CACHE_TTL_MS) return entry.data;
+  if (entry?.data?.length > 0) return entry.data;
   return getByType(type, 1000).map(dbRow);
 }
 
@@ -225,7 +234,5 @@ app.get('/api/images/:ic_id', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Dogs & Cats running at http://localhost:${PORT}`);
-  // Warm both caches in the background so images are ready on first request
-  runFetch('dogs').catch(console.error);
-  runFetch('cats').catch(console.error);
+  startFetchLoop().catch(console.error);
 });

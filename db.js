@@ -60,8 +60,9 @@ const stmtTopSuperlikes = db.prepare(
   'SELECT * FROM images WHERE superlikes > 0 ORDER BY superlikes DESC LIMIT ?'
 );
 
-const stmtGetById     = db.prepare('SELECT * FROM images WHERE ic_id = ?');
-const stmtGetByType   = db.prepare('SELECT * FROM images WHERE type = ? ORDER BY RANDOM() LIMIT ?');
+const stmtGetById       = db.prepare('SELECT * FROM images WHERE ic_id = ?');
+const stmtGetByType     = db.prepare('SELECT * FROM images WHERE type = ? ORDER BY RANDOM() LIMIT ?');
+const stmtCountImages   = db.prepare('SELECT COUNT(*) as c FROM images');
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,10 @@ export function getById(icId) {
 
 export function getByType(type, limit = 120) {
   return stmtGetByType.all(type, limit);
+}
+
+export function countImages() {
+  return stmtCountImages.get().c;
 }
 
 export default db;
