@@ -12,15 +12,32 @@ app.use(express.json());
 
 // ── Subreddit lists ──────────────────────────────────────────────────────────
 const SUBREDDITS = {
-  dogs: ['dogpics', 'puppies', 'rarepuppers', 'goldenretrievers', 'aww'],
-  cats: ['cats', 'catpics', 'IllegallySmolCats', 'kittens', 'aww'],
+  dogs: [
+    'dogpics', 'puppies', 'rarepuppers', 'goldenretrievers', 'aww',
+    'dogswithjobs', 'WhatsWrongWithYourDog', 'husky', 'corgi', 'germanshepherd',
+    'pitbulls', 'labrador', 'shiba', 'bordercollie', 'poodle',
+    'beagle', 'dachshund', 'samoyeds', 'greatdanes', 'akita',
+    'Dogtraining', 'rescuedogs', 'lookatmydog', 'ThisIsMyLifeNow', 'dogswearinghats',
+    'maltese', 'siberianhusky', 'boxers', 'australianshepherd', 'weimaraner',
+  ],
+  cats: [
+    'cats', 'catpics', 'IllegallySmolCats', 'kittens', 'aww',
+    'CatsStandingUp', 'Chonkers', 'blackcats', 'orangecats', 'tabbycats',
+    'mainecoons', 'bengalcats', 'scottishfold', 'AbyssinianCats', 'ragdolls',
+    'siamesecats', 'calico', 'polydactyl', 'fluffycats', 'CatsInSinks',
+    'catsinboxes', 'blep', 'Catswhoyell', 'sleepingcats', 'lordkitty',
+    'nothavingit', 'TuxedoCats', 'torties', 'snowcats', 'CatsOnKeyboards',
+  ],
 };
+
+// Listing types fetched per subreddit — 6 × 100 posts = up to 600 unique per sub
+const REDDIT_LISTINGS = ['hot', 'top?t=week', 'top?t=month', 'top?t=year', 'top?t=all', 'new'];
 
 // ── In-memory cache ──────────────────────────────────────────────────────────
 const cache = new Map();
 const CACHE_TTL_MS = 15 * 60 * 1000;
-const UPLOAD_BATCH = 6;
-const IMAGE_TARGET = 60;
+const UPLOAD_BATCH = 10;
+const IMAGE_TARGET = 10_000;
 
 // ── Reddit helpers ───────────────────────────────────────────────────────────
 
@@ -37,16 +54,16 @@ function extractImageUrl(post) {
   return null;
 }
 
-async function fetchSubreddit(subreddit) {
-  const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=50`;
+async function fetchSubredditListing(subreddit, listing) {
+  const url = `https://www.reddit.com/r/${subreddit}/${listing}.json?limit=100`;
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'DogsAndCatsApp/1.0 (educational project)',
       Accept: 'application/json',
     },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(10_000),
   });
-  if (!res.ok) throw new Error(`Reddit r/${subreddit}: HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Reddit r/${subreddit}/${listing}: HTTP ${res.status}`);
   const json = await res.json();
   return (json?.data?.children ?? [])
     .map((c) => c.data)
@@ -58,6 +75,15 @@ async function fetchSubreddit(subreddit) {
         : null;
     })
     .filter(Boolean);
+}
+
+function fetchSubreddit(subreddit) {
+  // Fetch all listing types in parallel and flatten
+  return Promise.allSettled(
+    REDDIT_LISTINGS.map((listing) => fetchSubredditListing(subreddit, listing))
+  ).then((results) =>
+    results.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value)
+  );
 }
 
 // ── Image pipeline ───────────────────────────────────────────────────────────
@@ -119,8 +145,8 @@ function getImages(type) {
   if (type === 'both') {
     maybeRefresh('dogs');
     maybeRefresh('cats');
-    const dogs = cache.get('dogs')?.data ?? getByType('dogs', 60).map(dbRow);
-    const cats = cache.get('cats')?.data ?? getByType('cats', 60).map(dbRow);
+    const dogs = cache.get('dogs')?.data ?? getByType('dogs', 1000).map(dbRow);
+    const cats = cache.get('cats')?.data ?? getByType('cats', 1000).map(dbRow);
     const combined = [...dogs, ...cats];
     for (let i = combined.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -132,7 +158,7 @@ function getImages(type) {
   maybeRefresh(type);
   const entry = cache.get(type);
   if (entry && Date.now() - entry.ts < CACHE_TTL_MS) return entry.data;
-  return getByType(type, 120).map(dbRow);
+  return getByType(type, 1000).map(dbRow);
 }
 
 // ── Routes ───────────────────────────────────────────────────────────────────

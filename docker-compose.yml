@@ -1,15 +1,23 @@
 services:
-  app:
+  cuteoverload:
     build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - PORT=3000
-      - NODE_ENV=production
+    container_name: cuteoverload
     restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
     networks:
-      - web
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cuteoverload.rule=Host(`cuteoverload.tinetov.net`)"
+      - "traefik.http.routers.cuteoverload.entrypoints=web"
+      - "traefik.http.services.cuteoverload.loadbalancer.server.port=3000"
 
 networks:
-  web:
-    driver: bridge
+  traefik:
+    external: true

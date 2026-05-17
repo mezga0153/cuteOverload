@@ -6,7 +6,9 @@ const require = createRequire(import.meta.url);
 const Database = require('better-sqlite3');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, 'images.db');
+const DB_PATH = process.env.NODE_ENV === 'production'
+  ? '/app/data/images.db'
+  : path.join(__dirname, 'images.db');
 
 const db = new Database(DB_PATH);
 
