@@ -26,7 +26,6 @@ const screenLoading     = document.getElementById('screen-loading');
 const screenSwipe       = document.getElementById('screen-swipe');
 const loadingText       = document.getElementById('loading-text');
 const cardStack         = document.getElementById('card-stack');
-const counterEl         = document.getElementById('counter');
 const errorModal        = document.getElementById('error-modal');
 const modalMessage      = document.getElementById('modal-message');
 const btnModalClose     = document.getElementById('btn-modal-close');
@@ -166,17 +165,12 @@ function renderStack() {
     applyStackTransform(card, offset);
     cardStack.appendChild(card);
   }
-  updateCounter();
 }
 
 function applyStackTransform(card, offset) {
   card.style.transform  = `translateY(${offset * 10}px) scale(${1 - offset * 0.04})`;
   card.style.zIndex     = 10 - offset;
   card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-}
-
-function updateCounter() {
-  counterEl.textContent = `${Math.min(currentIndex + 1, images.length)} / ${images.length}`;
 }
 
 // ── Build card ────────────────────────────────────────────────────────────────
