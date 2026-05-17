@@ -86,6 +86,43 @@ function fetchSubreddit(subreddit) {
   );
 }
 
+// ── Dog API / Cat API helpers ─────────────────────────────────────────────────
+
+const ANIMAL_APIS = {
+  dogs: 'https://api.thedogapi.com/v1/images/search',
+  cats: 'https://api.thecatapi.com/v1/images/search',
+};
+const API_MAX_PAGES  = 200; // 200 × 100 = up to 20 k candidates per type
+const IMAGE_RE = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i;
+
+async function fetchAnimalApiPage(type, page) {
+  const url = `${ANIMAL_APIS[type]}?limit=100&page=${page}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'DogsAndCatsApp/1.0' },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`Animal API HTTP ${res.status}`);
+  const json = await res.json();
+  return (Array.isArray(json) ? json : [])
+    .filter((item) => item.url && IMAGE_RE.test(item.url))
+    .map((item) => ({ url: item.url, title: '', source: new URL(ANIMAL_APIS[type]).hostname }));
+}
+
+async function fetchAnimalApiCandidates(type) {
+  const results = [];
+  for (let page = 0; page < API_MAX_PAGES; page++) {
+    try {
+      const batch = await fetchAnimalApiPage(type, page);
+      if (batch.length === 0) break; // API signals no more data
+      results.push(...batch);
+    } catch {
+      break;
+    }
+  }
+  console.log(`[${type}] animal API: ${results.length} candidates from ${ANIMAL_APIS[type]}`);
+  return results;
+}
+
 // ── Image pipeline ───────────────────────────────────────────────────────────
 
 const fetching = new Set();
@@ -113,14 +150,17 @@ async function runFetch(type) {
   if (fetching.has(type)) return;
   fetching.add(type);
   try {
-    const subreddits = SUBREDDITS[type];
-    const settled    = await Promise.allSettled(subreddits.map(fetchSubreddit));
+    // Fetch Reddit and dedicated animal API in parallel
+    const [redditSettled, apiResults] = await Promise.all([
+      Promise.allSettled(SUBREDDITS[type].map(fetchSubreddit)),
+      fetchAnimalApiCandidates(type),
+    ]);
 
     const seen = new Set();
-    const candidates = settled
-      .filter((r) => r.status === 'fulfilled')
-      .flatMap((r) => r.value)
-      .filter((img) => {
+    const candidates = [
+      ...redditSettled.filter((r) => r.status === 'fulfilled').flatMap((r) => r.value),
+      ...apiResults,
+    ].filter((img) => {
         if (!img || seen.has(img.url)) return false;
         seen.add(img.url);
         return true;
