@@ -58,8 +58,17 @@ async function fetchSubredditListing(subreddit, listing) {
   const url = `https://www.reddit.com/r/${subreddit}/${listing}.json?limit=100`;
   const res = await fetch(url, {
     headers: {
-      'User-Agent': 'DogsAndCatsApp/1.0 (educational project)',
-      Accept: 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
     },
     signal: AbortSignal.timeout(10_000),
   });
@@ -268,6 +277,28 @@ app.get('/api/images/:ic_id', (req, res) => {
   const record = getById(req.params.ic_id);
   if (!record) return res.status(404).json({ error: 'Not found' });
   res.json(record);
+});
+
+// POST /admin/ingest  { type, images: [{url, title, source}] }
+// Called by the mediabox Reddit scraper. Protected by ADMIN_SECRET env var.
+app.post('/admin/ingest', async (req, res) => {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { type, images } = req.body;
+  if (!['dogs', 'cats'].includes(type) || !Array.isArray(images) || images.length === 0) {
+    return res.status(400).json({ error: 'type (dogs|cats) and images[] required' });
+  }
+  let inserted = 0;
+  for (const img of images) {
+    try {
+      const result = await ensureHosted(img, type);
+      if (result) inserted++;
+    } catch { /* skip individual failures */ }
+  }
+  console.log(`[admin/ingest] type=${type} submitted=${images.length} inserted=${inserted}`);
+  res.json({ ok: true, inserted, submitted: images.length });
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────
