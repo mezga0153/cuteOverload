@@ -244,6 +244,7 @@ h1 {
   bottom: 0; left: 0; right: 0;
   padding: 3rem 1.25rem 1.25rem;
   background: linear-gradient(transparent, rgba(0,0,0,.72));
+  z-index: 2;
 }
 
 .card-title {
