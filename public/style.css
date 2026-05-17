@@ -301,6 +301,26 @@ h1 {
 .hint:hover  { opacity: 0.9; }
 .hint:active { transform: scale(0.88) !important; }
 
+#btn-nope {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(239,68,68,.35);
+  background: rgba(239,68,68,.13);
+  backdrop-filter: blur(8px);
+  font-size: 1.3rem;
+  color: rgba(239,68,68,.85);
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3), 0 0 16px rgba(239,68,68,.1);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1 !important;
+}
+#btn-nope:hover  { transform: scale(1.1); background: rgba(239,68,68,.24); box-shadow: 0 8px 28px rgba(0,0,0,.4), 0 0 24px rgba(239,68,68,.22); }
+#btn-nope:active { transform: scale(0.92) !important; }
+
 #btn-superlike {
   width: 62px;
   height: 62px;
