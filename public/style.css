@@ -287,7 +287,19 @@ h1 {
   padding: 0 0.5rem;
 }
 
-.hint { font-size: 1.8rem; opacity: 0.5; }
+.hint {
+  font-size: 1.8rem;
+  opacity: 0.5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: transform 0.15s, opacity 0.15s;
+  line-height: 1;
+}
+.hint:hover  { opacity: 0.9; }
+.hint:active { transform: scale(0.88) !important; }
 
 #btn-superlike {
   width: 62px;

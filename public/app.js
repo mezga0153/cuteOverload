@@ -30,6 +30,8 @@ const errorModal        = document.getElementById('error-modal');
 const modalMessage      = document.getElementById('modal-message');
 const btnModalClose     = document.getElementById('btn-modal-close');
 const btnBack           = document.getElementById('btn-back');
+const btnNope           = document.getElementById('btn-nope');
+const btnLike           = document.getElementById('btn-like');
 const btnSuperlike      = document.getElementById('btn-superlike');
 const btnBookmarks      = document.getElementById('btn-bookmarks');
 const bookmarksPanel    = document.getElementById('bookmarks-panel');
@@ -248,13 +250,24 @@ function attachDrag(card, labelLike, labelNope, labelSuper) {
       labelSuper.style.opacity = ratio;
       labelLike.style.opacity  = 0;
       labelNope.style.opacity  = 0;
+      btnSuperlike.style.transform = `scale(${1 + ratio * 0.45})`;
+      btnLike.style.transform      = 'scale(1)';
+      btnNope.style.transform      = 'scale(1)';
     } else {
       const rot = dx * 0.07;
       card.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
       const ratio = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
-      if (dx > 0) { labelLike.style.opacity  = ratio; labelNope.style.opacity  = 0; }
-      else         { labelNope.style.opacity  = ratio; labelLike.style.opacity  = 0; }
-      labelSuper.style.opacity = 0;
+      if (dx > 0) {
+        labelLike.style.opacity  = ratio; labelNope.style.opacity  = 0;
+        btnLike.style.transform      = `scale(${1 + ratio * 0.45})`;
+        btnNope.style.transform      = 'scale(1)';
+      } else {
+        labelNope.style.opacity  = ratio; labelLike.style.opacity  = 0;
+        btnNope.style.transform      = `scale(${1 + ratio * 0.45})`;
+        btnLike.style.transform      = 'scale(1)';
+      }
+      labelSuper.style.opacity     = 0;
+      btnSuperlike.style.transform = 'scale(1)';
     }
   }
 
@@ -262,6 +275,7 @@ function attachDrag(card, labelLike, labelNope, labelSuper) {
     if (!active) return;
     active = false;
     labelLike.style.opacity = labelNope.style.opacity = labelSuper.style.opacity = 0;
+    btnLike.style.transform = btnNope.style.transform = btnSuperlike.style.transform = 'scale(1)';
 
     const isUp = dy < -SWIPE_THRESHOLD && Math.abs(dy) > Math.abs(dx);
 
@@ -300,12 +314,26 @@ function attachDrag(card, labelLike, labelNope, labelSuper) {
 }
 
 // ── Superlike button ──────────────────────────────────────────────────────────
+btnNope.addEventListener('click', () => {
+  const topCard = cardStack.querySelector('.card:not(.card--background)');
+  if (topCard) doNope(topCard);
+});
+
+btnLike.addEventListener('click', () => {
+  const topCard = cardStack.querySelector('.card:not(.card--background)');
+  if (topCard) doLike(topCard);
+});
+
 btnSuperlike.addEventListener('click', () => {
   const topCard = cardStack.querySelector('.card:not(.card--background)');
   if (topCard) doSuperlike(topCard);
 });
 
 // ── Actions ───────────────────────────────────────────────────────────────────
+function doNope(card) {
+  flyCard(card, -1);
+}
+
 function doLike(card) {
   const img = images[currentIndex];
   sendReaction(img.ic_id, 'like');
