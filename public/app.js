@@ -179,8 +179,12 @@ function buildCard(imageData, isTop) {
   card.className = 'card' + (isTop ? '' : ' card--background');
 
   const img = document.createElement('img');
-  img.src = imageData.url;
   img.alt = imageData.title || 'Cute animal';
+  img.style.opacity = '0';
+  img.style.transition = 'opacity 0.25s ease';
+  img.onload  = () => { img.style.opacity = '1'; };
+  img.onerror = () => { img.style.opacity = '0.15'; };
+  img.src = imageData.url;
 
   const info = document.createElement('div');
   info.className = 'card-info';
