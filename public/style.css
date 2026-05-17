@@ -276,8 +276,8 @@ h1 {
   letter-spacing: 2px;
 }
 
-.label-like  { right: 1.25rem; color: var(--green); border-color: var(--green); transform: rotate(15deg); }
-.label-nope  { left: 1.25rem;  color: var(--red);   border-color: var(--red);   transform: rotate(-15deg); }
+.label-like  { left: 1.25rem;  color: var(--green); border-color: var(--green); transform: rotate(-15deg); }
+.label-nope  { right: 1.25rem; color: var(--red);   border-color: var(--red);   transform: rotate(15deg); }
 .label-super { left: 50%; translate: -50% 0; color: var(--gold); border-color: var(--gold); font-size: 1rem; white-space: nowrap; }
 
 /* ── Swipe footer ─────────────────────────────────────────────────────────── */
