@@ -321,12 +321,45 @@ function doSuperlike(card) {
 
 function advance() {
   currentIndex++;
-  if (currentIndex < images.length) {
-    renderStack();
-    preload(images.slice(currentIndex + STACK_DEPTH, currentIndex + STACK_DEPTH + 4));
-  } else {
-    showEndCard();
+
+  if (currentIndex >= images.length) {
+    showEndCard('🎉', "You've seen them all!",
+      "You're a certified cute-animal appreciator!",
+      () => { images = []; currentIndex = 0; cardStack.innerHTML = ''; showScreen(screenSelect); });
+    return;
   }
+
+  // Remove the outgoing top card (already off-screen from flyCard/flyCardUp)
+  const outgoing = cardStack.querySelector('.card:not(.card--background)');
+  if (outgoing) outgoing.remove();
+
+  // Animate remaining background cards forward into their new positions
+  const bgCards = [...cardStack.querySelectorAll('.card--background')];
+  bgCards.forEach((card, i) => {
+    const newOffset = i;
+    card.style.transition = 'transform 0.38s cubic-bezier(.34,1.1,.64,1)';
+    card.style.transform  = `translateY(${newOffset * 10}px) scale(${1 - newOffset * 0.04})`;
+    card.style.zIndex     = 10 - newOffset;
+    if (newOffset === 0) {
+      card.classList.remove('card--background');
+      card.style.cursor        = 'grab';
+      card.style.pointerEvents = 'auto';
+      const ll = card.querySelector('.label-like');
+      const ln = card.querySelector('.label-nope');
+      const ls = card.querySelector('.label-super');
+      if (ll && ln && ls) attachDrag(card, ll, ln, ls);
+    }
+  });
+
+  // Append a fresh card at the back of the stack
+  const newIdx = currentIndex + bgCards.length;
+  if (newIdx < images.length) {
+    const newCard = buildCard(images[newIdx], false);
+    applyStackTransform(newCard, bgCards.length);
+    cardStack.insertBefore(newCard, cardStack.firstChild);
+  }
+
+  preload(images.slice(currentIndex + STACK_DEPTH, currentIndex + STACK_DEPTH + 4));
 }
 
 // ── Animations ────────────────────────────────────────────────────────────────
@@ -351,24 +384,6 @@ function snapBack(card) {
     card.classList.remove('card--shake');
     applyStackTransform(card, 0);
   }, { once: true });
-}
-
-// ── End card ──────────────────────────────────────────────────────────────────
-function showEndCard() {
-  cardStack.innerHTML = '';
-  const div = document.createElement('div');
-  div.className = 'end-card';
-  div.innerHTML = `
-    <div class="end-emoji">🎉</div>
-    <h2>You've seen them all!</h2>
-    <p>You're officially a certified cute-animal appreciator!</p>
-    <button class="btn-restart">See More Cuties</button>
-  `;
-  div.querySelector('.btn-restart').addEventListener('click', () => {
-    images = []; currentIndex = 0; cardStack.innerHTML = '';
-    showScreen(screenSelect);
-  });
-  cardStack.appendChild(div);
 }
 
 // ── Scold modal ───────────────────────────────────────────────────────────────
