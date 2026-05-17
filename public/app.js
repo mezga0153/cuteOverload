@@ -361,8 +361,9 @@ function advance() {
   const outgoing = cardStack.querySelector('.card:not(.card--background)');
   if (outgoing) outgoing.remove();
 
-  // Animate remaining background cards forward into their new positions
-  const bgCards = [...cardStack.querySelectorAll('.card--background')];
+  // Animate remaining background cards forward into their new positions.
+  // querySelectorAll returns DOM order (lowest z-index first), so reverse to get front→back.
+  const bgCards = [...cardStack.querySelectorAll('.card--background')].reverse();
   bgCards.forEach((card, i) => {
     const newOffset = i;
     card.style.transition = 'transform 0.38s cubic-bezier(.34,1.1,.64,1)';
