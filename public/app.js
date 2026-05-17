@@ -191,11 +191,16 @@ function buildCard(imageData, isTop) {
   const card = document.createElement('div');
   card.className = 'card' + (isTop ? '' : ' card--background');
 
+  // Blurred background fill — makes landscape images look great in portrait cards
+  const bg = document.createElement('div');
+  bg.className = 'card-blur-bg';
+  bg.style.backgroundImage = `url(${imageData.url})`;
+
   const img = document.createElement('img');
   img.alt = imageData.title || 'Cute animal';
   img.style.opacity = '0';
   img.style.transition = 'opacity 0.25s ease';
-  img.onload  = () => { img.style.opacity = '1'; };
+  img.onload  = () => { img.style.opacity = '1'; bg.style.opacity = '1'; };
   img.onerror = () => { img.style.opacity = '0.15'; };
   img.src = imageData.url;
 
@@ -209,6 +214,7 @@ function buildCard(imageData, isTop) {
   const labelNope  = document.createElement('div'); labelNope.className  = 'card-label label-nope';  labelNope.textContent  = 'NOPE';
   const labelSuper = document.createElement('div'); labelSuper.className = 'card-label label-super'; labelSuper.textContent = '⭐ SUPER!';
 
+  card.appendChild(bg);
   card.appendChild(img);
   card.appendChild(info);
   card.appendChild(labelLike);
