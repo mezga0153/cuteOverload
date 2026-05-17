@@ -30,7 +30,13 @@ const SUBREDDITS = {
   ],
 };
 
-const LISTINGS = ['hot', 'top?t=week', 'top?t=month', 'top?t=all', 'new'];
+const LISTINGS = [
+  'hot.json?limit=100',
+  'top.json?t=week&limit=100',
+  'top.json?t=month&limit=100',
+  'top.json?t=all&limit=100',
+  'new.json?limit=100',
+];
 
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -57,7 +63,7 @@ function extractImageUrl(post) {
 }
 
 async function fetchListing(subreddit, listing) {
-  const url = `https://www.reddit.com/r/${subreddit}/${listing}.json?limit=100`;
+  const url = `https://www.reddit.com/r/${subreddit}/${listing}`;
   try {
     const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(12_000) });
     if (!res.ok) { console.warn(`  ${subreddit}/${listing}: HTTP ${res.status}`); return []; }
