@@ -157,7 +157,7 @@ function getImages(type) {
 
   maybeRefresh(type);
   const entry = cache.get(type);
-  if (entry && Date.now() - entry.ts < CACHE_TTL_MS) return entry.data;
+  if (entry && entry.data.length > 0 && Date.now() - entry.ts < CACHE_TTL_MS) return entry.data;
   return getByType(type, 1000).map(dbRow);
 }
 
