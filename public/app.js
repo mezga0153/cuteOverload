@@ -127,9 +127,25 @@ function preload(imgs, count = 6) {
 }
 
 // ── Start flow ────────────────────────────────────────────────────────────────
+function showSkeleton() {
+  cardStack.innerHTML = '<div class="card card--skeleton"></div>';
+}
+
+function showEndCard(emoji, title, body, onRetry) {
+  cardStack.innerHTML = `
+    <div class="end-card">
+      <div class="end-emoji">${emoji}</div>
+      <h2>${title}</h2>
+      <p>${body}</p>
+      ${onRetry ? '<button class="btn-restart">Try again</button>' : ''}
+    </div>`;
+  if (onRetry) cardStack.querySelector('.btn-restart').addEventListener('click', onRetry, { once: true });
+}
+
 async function start(type) {
-  showScreen(screenLoading);
-  loadingText.textContent = '';
+  images = []; currentIndex = 0;
+  showScreen(screenSwipe);
+  showSkeleton();
 
   let list;
   try {
@@ -137,14 +153,12 @@ async function start(type) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     list = await res.json();
   } catch {
-    loadingText.textContent = '😿 Could not reach the server. Tap to retry.';
-    screenLoading.addEventListener('click', () => start(type), { once: true });
+    showEndCard('😿', 'Could not reach server', 'Check your connection and try again.', () => start(type));
     return;
   }
 
   if (!Array.isArray(list) || list.length === 0) {
-    loadingText.textContent = '🐾 Loading cuties in the background…\nTap to check again in a moment!';
-    screenLoading.addEventListener('click', () => start(type), { once: true });
+    showEndCard('🐾', 'Still loading cuties…', 'The server is warming up. Tap to check again.', () => start(type));
     return;
   }
 
@@ -152,7 +166,6 @@ async function start(type) {
   currentIndex = 0;
   preload(images);
   renderStack();
-  showScreen(screenSwipe);
 }
 
 // ── Card stack ────────────────────────────────────────────────────────────────
