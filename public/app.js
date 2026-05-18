@@ -39,10 +39,14 @@ const btnBookmarksClose = document.getElementById('btn-bookmarks-close');
 const bookmarksGrid     = document.getElementById('bookmarks-grid');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let images       = [];
-let currentIndex = 0;
+let images        = [];
+let currentIndex  = 0;
+let currentType   = null;
+let fetchingMore  = false;
+const seenIds        = new Set();
 const STACK_DEPTH    = 3;
 const SWIPE_THRESHOLD = 70;
+const PREFETCH_WHEN  = 20;  // fetch more when this many images remain
 
 // ── Bookmarks (localStorage) ──────────────────────────────────────────────────
 const BOOKMARKS_KEY = 'dogsandcats_superlikes';
@@ -145,7 +149,8 @@ function showEndCard(emoji, title, body, onRetry) {
 }
 
 async function start(type) {
-  images = []; currentIndex = 0;
+  images = []; currentIndex = 0; currentType = type;
+  seenIds.clear(); fetchingMore = false;
   showScreen(screenSwipe);
   showSkeleton();
 
@@ -164,10 +169,26 @@ async function start(type) {
     return;
   }
 
+  list.forEach((img) => seenIds.add(img.ic_id));
   images = list;
   currentIndex = 0;
   preload(images);
   renderStack();
+}
+
+async function maybeLoadMore() {
+  if (fetchingMore || !currentType) return;
+  if (images.length - currentIndex > PREFETCH_WHEN) return;
+  fetchingMore = true;
+  try {
+    const res = await fetch(`/api/images?type=${encodeURIComponent(currentType)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const list = await res.json();
+    const fresh = list.filter((img) => !seenIds.has(img.ic_id));
+    fresh.forEach((img) => seenIds.add(img.ic_id));
+    if (fresh.length > 0) images.push(...fresh);
+  } catch { /* silently ignore — user will hit end card if truly empty */ }
+  fetchingMore = false;
 }
 
 // ── Card stack ────────────────────────────────────────────────────────────────
@@ -415,6 +436,7 @@ function advance() {
   }
 
   preload(images.slice(currentIndex + STACK_DEPTH, currentIndex + STACK_DEPTH + 4));
+  maybeLoadMore();
 }
 
 // ── Animations ────────────────────────────────────────────────────────────────
